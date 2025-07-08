@@ -1,3 +1,0 @@
-flask==3.0.3
-google-cloud-aiplatform==1.64.0
-pillow==10.4.0
