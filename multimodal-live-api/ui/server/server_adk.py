@@ -21,6 +21,9 @@ from common import (
     SEND_SAMPLE_RATE,
     SYSTEM_INSTRUCTION,
     get_order_status,
+    check_storage_availability,
+    book_storage_reservation,
+    validate_user_identity,
 )
 
 
@@ -37,6 +40,55 @@ def order_status_tool(order_id: str):
     return get_order_status(order_id)
 
 
+# Function tool for storage availability
+def storage_availability_tool(size: str = None, location: str = None):
+    """Check available storage units by size and location.
+
+    Args:
+        size: Storage unit size (e.g., "Small (5x5)", "Medium (10x10)", "Large (10x20)")
+        location: Location preference (e.g., "Downtown", "Midtown", "Airport", "Suburbs")
+
+    Returns:
+        Dictionary containing availability information
+    """
+    return check_storage_availability(size, location)
+
+
+# Function tool for booking reservations
+def book_reservation_tool(
+    customer_name: str, size: str, location: str, start_date: str, duration_months: int
+):
+    """Create a new storage reservation for a customer.
+
+    Args:
+        customer_name: Name of the customer
+        size: Storage unit size
+        location: Preferred location
+        start_date: When the rental starts (YYYY-MM-DD format)
+        duration_months: How many months to book
+
+    Returns:
+        Dictionary containing reservation details
+    """
+    return book_storage_reservation(
+        customer_name, size, location, start_date, duration_months
+    )
+
+
+# Function tool for user identity validation
+def validate_identity_tool(address: str):
+    """Verify user identity using address information.
+
+    Args:
+        address: User's address or city (e.g., "NW Calgary")
+
+    Returns:
+        Dictionary containing validation results
+    """
+    result = validate_user_identity(address=address)
+    return result
+
+
 class ADKWebSocketServer(BaseWebSocketServer):
     """WebSocket server implementation using Google ADK."""
 
@@ -48,7 +100,12 @@ class ADKWebSocketServer(BaseWebSocketServer):
             name="customer_service_agent",
             model=MODEL,
             instruction=SYSTEM_INSTRUCTION,
-            tools=[order_status_tool],
+            tools=[
+                order_status_tool,
+                storage_availability_tool,
+                book_reservation_tool,
+                validate_identity_tool,
+            ],
         )
 
         # Create session service
@@ -149,20 +206,27 @@ class ADKWebSocketServer(BaseWebSocketServer):
                     # Check for turn completion or interruption using string matching
                     # This is a fallback approach until a proper API exists
                     event_str = str(event)
-                    #print()
+                    # print()
 
                     # Handle audio content
                     if event.content and event.content.parts:
                         for part in event.content.parts:
                             # Process audio content
                             if hasattr(part, "inline_data") and part.inline_data:
-                                b64_audio = base64.b64encode(part.inline_data.data).decode("utf-8")
-                                await websocket.send(json.dumps({"type": "audio", "data": b64_audio}))
+                                b64_audio = base64.b64encode(
+                                    part.inline_data.data
+                                ).decode("utf-8")
+                                await websocket.send(
+                                    json.dumps({"type": "audio", "data": b64_audio})
+                                )
 
                             # Process text content
                             if hasattr(part, "text") and part.text:
                                 # Check if this is user or model text based on content role
-                                if hasattr(event.content, "role") and event.content.role == "user":
+                                if (
+                                    hasattr(event.content, "role")
+                                    and event.content.role == "user"
+                                ):
                                     # User text shouldn't be sent to the client
                                     input_texts.append(part.text)
                                 else:
@@ -173,19 +237,25 @@ class ADKWebSocketServer(BaseWebSocketServer):
                                     # Check in the event string for the partial flag
                                     # Only process messages with "partial=True"
                                     if "partial=True" in event_str:
-                                        await websocket.send(json.dumps({"type": "text", "data": part.text}))
+                                        await websocket.send(
+                                            json.dumps(
+                                                {"type": "text", "data": part.text}
+                                            )
+                                        )
                                         output_texts.append(part.text)
                                     # Skip messages with "partial=None" to avoid duplication
 
-
-
                     # Check for interruption
-                    if event.interrupted  and not interrupted:
+                    if event.interrupted and not interrupted:
                         logger.info("🤐 INTERRUPTION DETECTED")
-                        await websocket.send(json.dumps({
-                            "type": "interrupted",
-                            "data": "Response interrupted by user input"
-                        }))
+                        await websocket.send(
+                            json.dumps(
+                                {
+                                    "type": "interrupted",
+                                    "data": "Response interrupted by user input",
+                                }
+                            )
+                        )
                         interrupted = True
 
                     # Check for turn completion
@@ -199,12 +269,16 @@ class ADKWebSocketServer(BaseWebSocketServer):
                         if input_texts:
                             # Get unique texts to prevent duplication
                             unique_texts = list(dict.fromkeys(input_texts))
-                            logger.info(f"Input transcription: {' '.join(unique_texts)}")
+                            logger.info(
+                                f"Input transcription: {' '.join(unique_texts)}"
+                            )
 
                         if output_texts:
                             # Get unique texts to prevent duplication
                             unique_texts = list(dict.fromkeys(output_texts))
-                            logger.info(f"Output transcription: {' '.join(unique_texts)}")
+                            logger.info(
+                                f"Output transcription: {' '.join(unique_texts)}"
+                            )
 
                         # Reset for next turn
                         input_texts = []
@@ -231,4 +305,5 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Unhandled exception in main: {e}")
         import traceback
+
         traceback.print_exc()
