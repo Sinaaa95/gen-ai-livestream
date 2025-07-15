@@ -207,7 +207,7 @@ class LiveAPIWebSocketServer(BaseWebSocketServer):
                                     f"⏰ Idle for {idle_seconds:.1f} seconds"
                                 )  # Debug log
 
-                                if idle_seconds >= 5 and not warned:
+                                if idle_seconds >= 10 and not warned:
                                     # Warn user with follow-up message
                                     logger.info(
                                         "🟡 User inactive for 5s - sending follow-up"
@@ -217,7 +217,7 @@ class LiveAPIWebSocketServer(BaseWebSocketServer):
                                     )
                                     warned = True
 
-                                if idle_seconds >= 8 and warned:
+                                if idle_seconds >= 15 and warned:
                                     logger.info(
                                         "🔴 User inactive for 8s - disconnecting"
                                     )
