@@ -25,7 +25,7 @@ from common import (
     get_order_status,
     check_storage_availability,
     book_storage_reservation,
-    validate_user_identity,
+    # validate_user_identity,
 )
 
 # Function declarations for LiveAPI
@@ -88,20 +88,20 @@ book_reservation_function = types.FunctionDeclaration(
     ),
 )
 
-validate_identity_function = types.FunctionDeclaration(
-    name="validate_user_identity",
-    description="Verify user identity using address information",
-    parameters=types.Schema(
-        type=types.Type.OBJECT,
-        properties={
-            "address": types.Schema(
-                type=types.Type.STRING,
-                description="User's address or city (e.g., 'NW Calgary')",
-            ),
-        },
-        required=["address"],
-    ),
-)
+# validate_identity_function = types.FunctionDeclaration(
+#     name="validate_user_identity",
+#     description="Verify user identity using address information",
+#     parameters=types.Schema(
+#         type=types.Type.OBJECT,
+#         properties={
+#             "address": types.Schema(
+#                 type=types.Type.STRING,
+#                 description="User's address or city (e.g., 'NW Calgary')",
+#             ),
+#         },
+#         required=["address"],
+#     ),
+# )
 
 # Initialize Google client
 client = genai.Client(vertexai=True, project=PROJECT_ID, location=LOCATION)
@@ -124,7 +124,7 @@ config = LiveConnectConfig(
                 order_status_function,
                 storage_availability_function,
                 book_reservation_function,
-                validate_identity_function,
+                # validate_identity_function,
             ]
         )
     ],
@@ -249,13 +249,13 @@ class LiveAPIWebSocketServer(BaseWebSocketServer):
                                                         "duration_months"
                                                     ),
                                                 )
-                                            elif (
-                                                function_name
-                                                == "validate_user_identity"
-                                            ):
-                                                result = validate_user_identity(
-                                                    address=function_args.get("address")
-                                                )
+                                            # elif (
+                                            #     function_name
+                                            #     == "validate_user_identity"
+                                            # ):
+                                            #     result = validate_user_identity(
+                                            #         address=function_args.get("address")
+                                            #     )
                                             else:
                                                 result = {
                                                     "error": f"Unknown function: {function_name}"

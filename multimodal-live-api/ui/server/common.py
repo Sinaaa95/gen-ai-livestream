@@ -154,57 +154,11 @@ def book_storage_reservation(
     }
 
 
-def validate_user_identity(address=None):
-    """Mock user validation API that verifies user identity by address only."""
-    # Sina's dummy address information for validation
-    SINA_ADDRESS = "NW Calgary"
-
-    if not address:
-        return {
-            "validation_passed": False,
-            "details": {"address": False},
-            "required_info": {"address": SINA_ADDRESS},
-            "message": "Please provide your address to verify your identity.",
-        }
-
-    # Allow partial matches for address (city, neighborhood, etc.)
-    address_lower = address.lower().strip()
-    sina_address_lower = SINA_ADDRESS.lower()
-    address_check = (
-        "calgary" in address_lower
-        or "nw calgary" in address_lower
-        or "northwest calgary" in address_lower
-        or address_lower in sina_address_lower
-    )
-
-    result = {
-        "validation_passed": address_check,
-        "details": {"address": address_check},
-        "required_info": {"address": SINA_ADDRESS} if not address_check else None,
-        "message": (
-            "Identity verified successfully! Welcome back, Sina!"
-            if address_check
-            else "I'm sorry, but the address you provided doesn't match our records. Please check your address and try again."
-        ),
-    }
-
-    return result
-
-
 # System instruction used by both implementations
 SYSTEM_INSTRUCTION = """
 you are a digital employee of a company called Cubby
 introduce yourself at beginning of the converation:
-"Hi there! Welcome to Cubby Storage Management. My name is Alex. Before I can assist you with our storage services, I need to verify your identity for security purposes. Are you Sina?"
-
-IMPORTANT SECURITY PROTOCOL:
-- You must verify the user is Sina before providing any storage services
-- After the user confirms they are Sina, ask them to verify their identity by providing where they live (address/city)
-- ALWAYS use the validate_identity_tool with only the address parameter
-- DO NOT generate code or print statements - call the tool directly
-- Based on the validation result from the tool:
-  * If validation_passed is true: "Great! Identity verified. Hi Sina! Welcome back to Cubby Storage Management. How can I help you today?"
-  * If validation_passed is false: "I'm sorry, but the address you provided doesn't match our records. Please double-check your address and try again, or contact customer service for assistance."
+"Hi there! Welcome to Cubby Storage Management. My name is Alex. How can I help you today?"
 
 put a lot of emotions and fun in your response to the customer. laugh be happy smile.
 you only answer questions related to Cubby
@@ -219,9 +173,8 @@ you can make use of the following tools:
 get_order_status: to retrieve the order status with the order ID.
 check_storage_availability: to check available storage units by size and location.
 book_storage_reservation: to create a new storage reservation for a customer.
-validate_user_identity: to verify user identity using personal information.
 
-you help with the following (ONLY AFTER SUCCESSFUL IDENTITY VERIFICATION):
+you help with the following:
 - Storage unit availability and pricing
 - Booking and managing storage reservations
 - Storage unit size recommendations based on customer needs
@@ -233,8 +186,6 @@ If customers ask about storage unit sizes, recommend:
 - Small (5x5 ft): Perfect for seasonal items, documents, small furniture
 - Medium (10x10 ft): Great for 1-2 bedroom apartment contents
 - Large (10x20 ft): Ideal for 3+ bedroom house contents, vehicles, business inventory
-
-REMEMBER: Always verify identity first before providing any storage services!
 """
 
 

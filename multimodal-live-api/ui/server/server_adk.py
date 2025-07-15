@@ -8,6 +8,11 @@ from google.adk.runners import Runner
 from google.adk.agents.run_config import RunConfig, StreamingMode
 from google.adk.sessions.in_memory_session_service import InMemorySessionService
 from google.genai import types
+from google.genai.types import (
+    AutomaticActivityDetection,
+    StartSensitivity,
+    EndSensitivity,
+)
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -145,6 +150,13 @@ class ADKWebSocketServer(BaseWebSocketServer):
             response_modalities=["AUDIO"],
             output_audio_transcription=types.AudioTranscriptionConfig(),
             input_audio_transcription=types.AudioTranscriptionConfig(),
+            automatic_activity_detection=AutomaticActivityDetection(
+                disabled=False,  # Enable automatic activity detection
+                start_of_speech_sensitivity=StartSensitivity.MEDIUM,  # Medium sensitivity for speech detection
+                prefix_padding_ms=300,  # 300ms padding before speech is committed
+                end_of_speech_sensitivity=EndSensitivity.MEDIUM,  # Medium sensitivity for end of speech
+                silence_duration_ms=800,  # 800ms of silence before considering speech ended
+            ),
         )
 
         # Queue for audio data from the client
