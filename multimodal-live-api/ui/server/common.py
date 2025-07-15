@@ -195,6 +195,10 @@ class BaseWebSocketServer:
         self.host = host
         self.port = port
         self.active_clients = {}  # Store client websockets
+        self.last_activity = {}  # Track last activity time for each client
+        self.should_stop = {}  # Track if session should stop
+        self.INACTIVITY_WARNING_TIMEOUT = 5  # Seconds before warning
+        self.INACTIVITY_DISCONNECT_TIMEOUT = 8  # Seconds before disconnect
 
     async def start(self):
         logger.info(f"Starting WebSocket server on {self.host}:{self.port}")
@@ -205,6 +209,11 @@ class BaseWebSocketServer:
         """Handle a new WebSocket client connection"""
         client_id = id(websocket)
         logger.info(f"New client connected: {client_id}")
+
+        # Initialize client tracking
+        self.active_clients[client_id] = websocket
+        self.last_activity[client_id] = None  # Will be set in process_audio
+        self.should_stop[client_id] = False
 
         # Send ready message to client
         await websocket.send(json.dumps({"type": "ready"}))
@@ -218,9 +227,69 @@ class BaseWebSocketServer:
             logger.error(f"Error handling client {client_id}: {e}")
             logger.error(traceback.format_exc())
         finally:
-            # Clean up if needed
-            if client_id in self.active_clients:
-                del self.active_clients[client_id]
+            # Clean up client data
+            await self.cleanup_client(client_id)
+
+    async def cleanup_client(self, client_id):
+        """Clean up client data when connection ends"""
+        self.should_stop[client_id] = True
+        self.last_activity.pop(client_id, None)
+        websocket = self.active_clients.pop(client_id, None)
+        if websocket:
+            try:
+                await websocket.close()
+            except:
+                pass  # Ignore errors during cleanup
+
+    async def update_activity(self, client_id):
+        """Update the last activity timestamp for a client"""
+        from datetime import datetime
+
+        self.last_activity[client_id] = datetime.utcnow()
+
+    async def check_inactivity(self, client_id, session=None, websocket=None):
+        """Check for client inactivity and handle timeouts"""
+        from datetime import datetime
+
+        if client_id not in self.last_activity or self.last_activity[client_id] is None:
+            return False
+
+        now = datetime.utcnow()
+        last = self.last_activity[client_id]
+        idle_seconds = (now - last).total_seconds()
+
+        # Skip if we don't have a session to send messages
+        if not session or not websocket:
+            return False
+
+        if idle_seconds >= self.INACTIVITY_DISCONNECT_TIMEOUT:
+            logger.info(
+                f"🔴 Client {client_id} inactive for {idle_seconds}s - disconnecting"
+            )
+            try:
+                await session.send_realtime_input(
+                    text="Since you're not responding, I'm ending this session now. Talk to you later!"
+                )
+                await websocket.send(
+                    json.dumps(
+                        {"type": "timeout", "data": "Session ended due to inactivity"}
+                    )
+                )
+            except:
+                pass  # Ignore errors during disconnect message
+            await self.cleanup_client(client_id)
+            return True
+        elif idle_seconds >= self.INACTIVITY_WARNING_TIMEOUT:
+            logger.info(f"🟡 Client {client_id} inactive for {idle_seconds}s - warning")
+            try:
+                await session.send_realtime_input(
+                    text="Are you still there? Let me know if you need help with anything else."
+                )
+            except:
+                pass  # Ignore errors during warning message
+            return False
+
+        return False
 
     async def process_audio(self, websocket, client_id):
         """
